@@ -1,0 +1,25 @@
+{
+  "name": "netatmo",
+  "version": "0.0.1",
+  "private": true,
+  "author": {
+    "name": "Michael Engel",
+    "email": "pimpraider@gmail.com",
+    "url": "https://github.com/3engel"
+  },
+  "repository": {
+    "url": "https://github.com/3engel/netatmo-mqtt-bridge"
+  },
+  "license":"MIT",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "bluebird": "^3.7.2",
+    "date-and-time": "^3.0.3",
+    "debug": "~2.6.9",
+    "dotenv": "^16.3.1",
+    "mqtt": "^5.1.4",
+    "request": "^2.88.2"
+  }
+}

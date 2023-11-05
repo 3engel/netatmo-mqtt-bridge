@@ -1,0 +1,19 @@
+version: '3.4'
+
+services:
+  netatmo:
+    image: ghcr.io/3engel/netatmo-mqtt-bridge:latest
+    container_name: netatmo-mqtt-bridge
+    volumes:
+      - ./token:/usr/src/app/token
+    environment:
+      CLIENT_ID: ""
+      CLIENT_SECRET: ""
+      ACCESS_TOKEN: ""
+      REFRESH_TOKEN: ""
+      MQTT_HOST: ""
+      #INTERVAL: 300 #Default seconds
+      #BASEURL: https://api.netatmo.com #Default
+      #MQTT_USER: "" #Optional
+      #MQTT_PASSWORD: "" #Optional
+      #MQTT_TOPIC_PREFIX: netatmo #Default
