@@ -137,8 +137,11 @@ const convertToMQTT = (data) => {
 
           mqttClient.publish(`${moduleTopic}type`, module.type);
           mqttClient.publish(`${moduleTopic}battery_percent`, module.battery_percent.toString());
-          mqttClient.publish(`${moduleTopic}Temperature`, module.dashboard_data.Temperature.toString());
-          mqttClient.publish(`${moduleTopic}Humidity`, module.dashboard_data.Humidity.toString());
+
+          if (module.dashboard_data !== undefined) {
+            mqttClient.publish(`${moduleTopic}Temperature`, module.dashboard_data.Temperature.toString());
+            mqttClient.publish(`${moduleTopic}Humidity`, module.dashboard_data.Humidity.toString());
+          }
         });
       }
     });
