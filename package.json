@@ -10,16 +10,16 @@
   "repository": {
     "url": "https://github.com/3engel/netatmo-mqtt-bridge"
   },
-  "license":"MIT",
+  "license": "MIT",
   "scripts": {
     "start": "node app.js"
   },
   "dependencies": {
+    "axios": "^1.7.2",
     "bluebird": "^3.7.2",
     "date-and-time": "^3.0.3",
     "debug": "~2.6.9",
     "dotenv": "^16.3.1",
-    "mqtt": "^5.1.4",
-    "request": "^2.88.2"
+    "mqtt": "^5.1.4"
   }
 }

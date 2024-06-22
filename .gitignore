@@ -134,3 +134,4 @@ dist
 .vscode
 docker
 **/last_refreshtoken.txt
+**/token.json

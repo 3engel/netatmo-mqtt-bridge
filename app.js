@@ -1,6 +1,6 @@
 require('dotenv').config()
 const mqtt = require('mqtt');
-const request = require('request');
+const axios = require('axios');
 const date = require('date-and-time');
 const Promise = require("bluebird");
 const fs = require('fs');
@@ -25,13 +25,13 @@ const log = (message, level) => {
 }
 
 const expiresInSec = 10000
-const refreshTokenFile = "last_refreshtoken.txt";
+const refreshTokenFile = "token.json";
 
 let mqttTopicPrefix = "netatmo";
 let baseUrl = "https://api.netatmo.com"
 let publishIntervalSeconds = 300;
 
-const requiredEnvs = ["CLIENT_ID", "CLIENT_SECRET", "REFRESH_TOKEN", "MQTT_HOST"]
+const requiredEnvs = ["CLIENT_ID", "CLIENT_SECRET", "MQTT_HOST"]
 
 requiredEnvs.forEach(env => {
   if (process.env[env] === undefined) {
@@ -53,23 +53,26 @@ if (process.env.MQTT_TOPIC_PREFIX !== undefined) {
 
 let clientId = process.env.CLIENT_ID;
 let clientSecret = process.env.CLIENT_SECRET;
-let accessToken = process.env.ACCESS_TOKEN;
-let refreshToken = process.env.REFRESH_TOKEN;
+let accessToken = ''
+let refreshToken = ''
 
 if (fs.existsSync(refreshTokenFile)) {
-  fs.stat(refreshTokenFile, (error, stats) => {
 
-    if (error) {
-      log(`Error while accessing ${refreshTokenFile}: ${error}`, 'error');
-    }
-    if (date.addSeconds(stats.mtime, expiresInSec) < new Date()) {
-      const fileContent = fs.readFileSync(refreshTokenFile);
-      if (fileContent !== null && fileContent !== undefined && stats.size > 0) {
-        log("Using local stored refreshToken", 'info');
-        refreshToken = fileContent;
-      }
-    }
-  });
+  const fileContent = fs.readFileSync(refreshTokenFile);
+  if (fileContent !== null && fileContent !== undefined) {
+    log(`Using stored ${refreshTokenFile}`, 'info');
+
+    const fileJson = JSON.parse(fileContent);
+    refreshToken = fileJson.refresh_token;
+    accessToken = fileJson.access_token;
+    log(`Access Token: ${accessToken}`)
+    log(`Refresh Token: ${refreshToken}`)
+
+  }
+}
+else {
+  log(`No ${refreshTokenFile} not found. Please create one.`);
+  process.exit(1);
 }
 
 let expireDate = new Date();
@@ -148,62 +151,73 @@ const convertToMQTT = (data) => {
   }
 }
 
-const doTokenRefresh = () => {
+const doTokenRefresh = async () => {
 
   if (expireDate < new Date()) {
-    request.post(
-      {
-        url: `${baseUrl}/oauth2/token`,
-        form: {
+
+    try {
+
+      var bodyFormData = new FormData();
+
+      const response = await axios.post(
+        `${baseUrl}/oauth2/token`,
+        {
           grant_type: "refresh_token",
           refresh_token: refreshToken,
           client_id: clientId,
           client_secret: clientSecret
+        },
+        {
+          headers: { 'content-type': 'application/x-www-form-urlencoded' }
         }
-      },
-      (error, response, body) => {
-        if (!error && response.statusCode == 200) {
-          const jsonResult = JSON.parse(body);
-          refreshToken = jsonResult.refresh_token;
-          expireDate = date.addSeconds(new Date(), jsonResult.expires_in - 800);
-          fs.writeFileSync(refreshTokenFile, jsonResult.refresh_token);
-          log(`Updated netatmo api refresh token and saved it under ${refreshTokenFile}`, 'info')
-        }
-        else {
-          hasError = true;
-          log(JSON.stringify(response, null, 3), "warn");
-          log(error, "error");
-        }
+      );
+
+      if (response.status === 200) {
+        refreshToken = response.data.refresh_token;
+        accessToken = response.data.access_token;
+        expireDate = date.addSeconds(new Date(), response.data.expires_in - 800);
+        fs.writeFileSync(refreshTokenFile, JSON.stringify(response.data, null, 2));
+        log(`Updated netatmo api token and saved it under ${refreshTokenFile}`, 'info')
       }
-    )
+    } catch (error) {
+      hasError = true;
+      log(JSON.stringify(error, null, 2), "error");
+      if (error.response.data.error) {
+        log(`Response error: ${error.response.data.error}`, "error");
+      }
+    }
   }
 }
 
 
-const getStationData = () => {
+const getStationData = async () => {
 
-  doTokenRefresh();
+  await doTokenRefresh();
 
-  request.get(`${baseUrl}/api/getstationsdata?get_favorites=false`,
-    {
+  try {
+
+    const response = await axios.get(
+      `${baseUrl}/api/getstationsdata?get_favorites=false`, {
       headers: {
         "Authorization": `Bearer ${accessToken}`
       }
-    }, (error, response, body) => {
-      if (!error && response.statusCode == 200) {
-        const jsonResult = JSON.parse(body);
-        convertToMQTT(jsonResult);
-      } else {
-        hasError = true;
-        log(JSON.stringify(response, null, 3), "warn");
-        log(error, "error");
-        mqttClient.end(true);
-        process.exit(1);
-      }
     });
+
+    if (response.status === 200) {
+      convertToMQTT(response.data);
+    }
+  } catch (error) {
+    hasError = true;
+    log(JSON.stringify(error, null, 2), "error");
+    if (error.response.data.error) {
+      log(`Response error: ${error.response.data.error}`, "error");
+    }
+    mqttClient.end(true);
+    process.exit(1);
+  }
 }
 
-const publishNetatmo = () => {
+const publishNetatmo = async () => {
   if (hasError) {
     log("Stopping proccess.", "error");
     mqttClient.end(true);
