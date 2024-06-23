@@ -9,8 +9,6 @@ services:
     environment:
       CLIENT_ID: ""
       CLIENT_SECRET: ""
-      # ACCESS_TOKEN: ""
-      # REFRESH_TOKEN: ""
       MQTT_HOST: ""
       #INTERVAL: 300 #Default seconds
       #BASEURL: https://api.netatmo.com #Default
